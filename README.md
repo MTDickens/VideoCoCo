@@ -34,9 +34,10 @@ photorealistic video** driven by a per-case edit instruction.
   The originally named `seedance-edit-prompt` and `seedance-distill` skills
   are not included in this checkout.
 - **`scripts/generate_video.py`** — prompt → Codex or Pi/Blender physics draft → fal.ai
-  Seedance 2.0 → saved MP4; also supports direct text-to-video and existing proxies.
+  H3-Max (default), H3 or Seedance 2.0 → saved MP4; also supports existing proxies
+  and direct Seedance text-to-video.
 - **`data/toy_cases/`** — 8 hand-checked video-to-video (v2v) triplets.
-- **`inference/`** — setup and usage documentation for the Seedance 2.0 runner.
+- **`inference/`** — setup, usage and clay-prompt research notes.
 
 ## 🎬 Toy dataset
 
@@ -70,16 +71,22 @@ a training-scale corpus.
 
 ## ⚙️ Inference
 
-For **fal.ai Seedance 2.0**, use the
+For **fal.ai H3-Max, H3 or Seedance 2.0**, use the
 [prompt-to-video runner](inference/seedance.md):
+
+Keep your inputs together in a folder: `prompt.txt` plus optional
+`reference.png` (also `.jpg`, `.jpeg`, `.webp`). The example below uses the
+included `examples/ballistic_pendulum_cardboard/prompt.txt`. Add `--image-to-agent` to guide the
+physics draft, `--image-to-ref2va` to send the image to the final video model,
+or both. Both switches default off; final-only routing warns but is allowed.
 
 ```bash
 uv sync --locked
 cp -n .env.example .env  # Once; then fill in FAL_KEY in .env.
 uv run --env-file .env scripts/generate_video.py --login  # One-time isolated Codex login.
 uv run --env-file .env scripts/generate_video.py \
-  --prompt "An ice cube melts on a warm plate, shrinking into a growing pool of water." \
-  --output outputs/melting.mp4
+  --input-dir examples/ballistic_pendulum_cardboard \
+  --output outputs/ballistic_pendulum_cardboard.mp4
 ```
 
 For Pi with your ChatGPT subscription instead:
@@ -88,21 +95,25 @@ For Pi with your ChatGPT subscription instead:
 uv run --env-file .env scripts/generate_video.py --agent pi --login
 # In Pi: /login openai-codex, then /quit after signing in.
 uv run --env-file .env scripts/generate_video.py --agent pi \
-  --prompt "An ice cube melts on a warm plate, shrinking into a growing pool of water." \
-  --output outputs/melting-pi.mp4
+  --input-dir examples/ballistic_pendulum_cardboard \
+  --output outputs/ballistic_pendulum_cardboard-pi.mp4
 ```
 
 Both agents use `gpt-6-astra`, fast service, xhigh reasoning, and isolated
 configuration/login stores. Codex remains the default. Pi provides the same
 draft/audit workflow with normal local permissions; it has no built-in sandbox.
 
+H3-Max is the default video model. Add `--video-model h3` or
+`--video-model seedance` to switch. Both H3 variants use the same experimental
+clay-reference guidance; see [sources and limitations](inference/h3-clay-research.md).
+
 The physics pipeline also needs the chosen agent CLI, Blender, and FFmpeg. Add
-`--direct` to use only Seedance text-to-video, requiring just the prompt and fal
+`--direct` to use only Seedance text-to-video, requiring the prompt folder and fal
 credentials. See the guide for setup, agent isolation, existing proxies, and recovery.
 
 ## Development
 
-The Seedance runner uses `uv` throughout. Its tooling is selectively adapted from
+The video runner uses `uv` throughout. Its tooling is selectively adapted from
 [research-code-python-starter-template](https://github.com/MTDickens/research-code-python-starter-template):
 Ruff for formatting, import sorting, and linting; `ty` for static types; and pytest
 for the existing offline tests. Versions are pinned in `uv.lock`.

@@ -1,4 +1,4 @@
 interface:
   display_name: "Physical Video Blender Implementer"
   short_description: "Implement physical plans as white-clay Blender previews"
-  default_prompt: "Turn this physical state plan into a standalone Blender Python script, render a 1280x720 5-second 24-fps white/clay preview video with no semantic colors, and extract a preview sheet while preserving semantic keyframes and transitions."
+  default_prompt: "Use $physical-video-blender-implementer to turn this physical state plan into a standalone Blender script, render a white/clay preview using the requested profile, and extract a sheet preserving semantic keyframes and transitions."

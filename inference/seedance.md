@@ -1,23 +1,58 @@
-# Prompt to video with Seedance 2.0
+# Prompt to video with H3-Max, H3 or Seedance 2.0
 
 `scripts/generate_video.py` runs the released VideoCoCo skills with Codex or Pi to
-produce a physics proxy, then uses **fal.ai Seedance 2.0** to generate and download
-the photorealistic MP4.
+produce a physics proxy, then uses **fal.ai H3-Max (default), H3 or Seedance 2.0**
+to generate and download the photorealistic MP4.
 
 ## What inputs are needed?
 
+Pass a folder with `--input-dir PATH`. Prompt text and the optional image live in
+that folder; there are no `--prompt`, `--prompt-file`, or image-path arguments.
+
+```text
+my-scene/
+├── prompt.txt          # UTF-8 scene description
+└── reference.png       # Optional; .jpg, .jpeg or .webp also accepted
+```
+
+Use exactly one file named `reference` with a supported extension when enabling
+image routing. Both image switches default to off, so merely placing an image
+in the folder does not send it anywhere. `examples/ballistic_pendulum_cardboard/` is a runnable
+example containing both files; copy it to start your own case.
+
+| Mode | Flags | Agent receives image | Final video model receives image |
+| --- | --- | --- | --- |
+| 1 | `--image-to-agent` | Yes | No |
+| 2 | `--image-to-agent --image-to-ref2va` | Yes | Yes |
+| 3 | `--image-to-ref2va` | No | Yes; runner warns |
+| 4 (default) | Neither flag | No | No |
+
+With `--image-to-agent`, the image is attached to Codex or Pi's initial request.
+It guides the starting composition, objects, geometry and camera; the text gives
+the action. The proxy remains clay. In mode 1, the agent describes the image's
+appearance in words for the final model. In mode 2, the final prompt assigns
+appearance to the image and geometry/motion/timing to the clay video. Mode 3 uses
+that same division, but the agent cannot inspect the image or tailor the draft
+to it; the warning does not block generation.
+
+The image is a reference, **not a guaranteed first frame**. This works with H3,
+H3-Max and Seedance's reference endpoints. Image switches are incompatible with
+`--direct`, `--login` and `--resume`. `--proxy` skips the agent, so it accepts only
+`--image-to-ref2va` and warns as mode 3. With neither switch, the image is ignored,
+including during validation and artifact copying.
+
 | Mode | Creative inputs | Requirements |
 | --- | --- | --- |
-| Physics pipeline (`--agent codex` or `--agent pi`) | Your scene prompt | Python 3.10+, uv dependencies, fal key/credits, the chosen agent CLI and separate authentication, Blender, FFmpeg/ffprobe |
-| `--direct` | Your scene prompt | Python 3.10+, `fal-client`, fal key/credits |
-| `--proxy video.mp4` | Existing proxy video + scene/edit prompt | Python 3.10+, `fal-client`, fal key/credits, ffprobe |
+| Physics pipeline (`--agent codex` or `--agent pi`) | Folder with `prompt.txt`, optional `reference.*` | Python 3.10+, uv dependencies, fal key/credits, the chosen agent CLI and separate authentication, Blender, FFmpeg/ffprobe |
+| `--direct` | Folder with `prompt.txt` | Python 3.10+, `fal-client`, fal key/credits |
+| `--proxy video.mp4` | Proxy video + folder with `edit_prompt.txt` or `prompt.txt`, optional `reference.*` | Python 3.10+, `fal-client`, fal key/credits, ffprobe |
 
 In the default pipeline, the physical plan, simulation code, proxy, visual audit,
 and edit prompt are created automatically. You do not need a dataset, reference
 image, manual plan, local model weights, or a CUDA GPU. Rendering still takes local
 compute. Physics/evaluation hints can be included in your scene prompt.
 
-This checkout provides three skills and the Seedance runner.
+This checkout provides three skills and the video runner.
 The originally named `seedance-edit-prompt` and `seedance-distill` skills are absent.
 This runner supplies the restyle instruction and fal integration directly.
 
@@ -84,40 +119,66 @@ model or provider fallback.
 
 ```bash
 uv run --env-file .env scripts/generate_video.py \
-  --prompt "An ice cube on a warm ceramic plate slowly melts into a connected pool of water, with the cube shrinking as the pool grows." \
-  --output outputs/melting.mp4
+  --input-dir examples/ballistic_pendulum_cardboard \
+  --output outputs/ballistic_pendulum_cardboard.mp4
 ```
 
 To use Pi for the identical workflow, add `--agent pi`:
 
 ```bash
 uv run --env-file .env scripts/generate_video.py --agent pi \
-  --prompt "An ice cube on a warm plate shrinks into a growing pool of water." \
-  --output outputs/melting-pi.mp4
+  --input-dir examples/ballistic_pendulum_cardboard \
+  --output outputs/ballistic_pendulum_cardboard-pi.mp4
+```
+
+For a case containing both `prompt.txt` and `reference.png`, send the image to
+both stages with:
+
+```bash
+uv run --env-file .env scripts/generate_video.py \
+  --input-dir my-scene --image-to-agent --image-to-ref2va \
+  --output outputs/my-scene.mp4
 ```
 
 Use `--agent codex` explicitly or omit the flag to select Codex. Both backends
 use the same three repo skills, render profile, audit schema, artifact validation,
 and fal request/download code. Their generated plans and videos can differ.
 
-Default settings: 5 seconds, 720p final output, 16:9, audio enabled. For example,
-add `--duration 8 --resolution 1080p --aspect-ratio 9:16 --no-audio`.
-Duration is 4–15 seconds. The physics reference remains within fal's reference
-resolution limits even when requesting higher resolution final output.
+Default settings: **H3-Max, 5 seconds, 768p final output, 16:9, native audio**.
+Select a backend independently of the agent with `--video-model`:
+
+| Model | fal reference endpoint | Output resolutions | Duration |
+| --- | --- | --- | --- |
+| `h3-max` (default) | `minimax/h3-max/reference-to-video` | 480p, **768p**, 1080p | 5–15s |
+| `h3` | `minimax/h3/reference-to-video` | 480p, **768p**, 2k, 4k | 5–15s |
+| `seedance` | `bytedance/seedance-2.0/reference-to-video` | 480p, **720p**, 1080p | 4–15s |
+
+Bold resolutions are this runner's defaults. For example, add `--video-model h3
+--resolution 2k`, or `--video-model seedance --no-audio`. H3 and H3-Max expose no
+audio-off API switch; the runner rejects `--no-audio` for these backends. To mute
+their output, remove its audio track afterwards. Resolution spelling is case
+insensitive at the CLI; requests use the casing required by each endpoint.
+The Blender proxy remains at the existing 24 fps render profile regardless of
+final output resolution. Reference inputs can incur charges in addition to output
+generation; consult the selected fal endpoint for current pricing.
 
 The sequence is:
 
-1. The chosen agent reads the three repo skills and writes a physical state plan.
+1. The chosen agent reads the scene prompt, any image routed to it, and the three
+   repo skills, then writes a physical state plan.
 2. It writes/runs a standalone Blender script and renders a clay proxy.
 3. It inspects semantic keyframes and transitions, repairing at most twice.
    A failed or uncertain audit stops the run before any fal submission.
-4. The runner uploads the proxy and sends its edit prompt with `@Video1` to
-   `bytedance/seedance-2.0/reference-to-video`.
+4. The agent writes `edit_prompt.txt` for the selected backend. The runner uploads
+   the proxy and, with `--image-to-ref2va`, the image, then submits their URLs
+   with that prompt to the selected fal endpoint.
 5. It polls the fal queue and downloads the video to your output path.
 
-Artifacts are kept beside the output in `outputs/melting.run/`: `input.json`,
+Artifacts are kept beside the output in `outputs/ballistic_pendulum_cardboard.run/`: `input.json`, `prompt.txt`,
 `physical_plan.json`, `scene.blender.py`, `proxy.mp4`, `preview.png`, `audit.json`,
 `edit_prompt.txt`, the agent's prompt/command/log, `fal_input.json`, and `fal_request.json`.
+When either image route is enabled, the original image is retained as `reference.*`.
+`input.json` records the input folder, copied image path and both routing switches.
 Pi also saves `pi.events.jsonl` with its tool and message trace. The runner takes
 Pi's final JSON response as the audit and verifies an image read of `preview.png`.
 Both backends' audits are validated against the same JSON Schema before upload.
@@ -125,65 +186,108 @@ Both backends' audits are validated against the same JSON Schema before upload.
 and artifact directories are never overwritten; choose a new output name.
 
 The draft may approximate physics. The agent's visual audit is not a numerical proof.
-Seedance reference conditioning does not guarantee frame-for-frame preservation;
+Reference conditioning does not guarantee frame-for-frame preservation;
 inspect the final video for your use case.
+
+### Clay prompt guidance
+
+H3 and H3-Max share the same experimental prompt guidance: identify **Video 1**
+as an untextured clay animation, preserve its geometry, camera and physical events,
+and describe the finished materials and lighting. The agent adds a timeline from
+the audited keyframes covering the entire clip, plus audio directions. The runner
+checks that the prompt names `Video 1` and clay, and rejects Seedance's syntax.
+These are basic text checks, not a semantic audit of the final generated video.
+
+Both H3 backends receive `reference_video_urls`, integer `duration`, and
+`prompt_expansion_mode: "disabled"`, so fal is asked to use the prepared wording.
+Seedance retains `@Video1`, `video_urls`, a string duration and its audio toggle.
+With `--image-to-ref2va`, H3/H3-Max also receive `reference_image_urls` with an
+`Image 1` appearance instruction; Seedance receives `image_urls` with `@Image1`.
+The final inputs are the prompt, one clay video, and optionally one image.
+No physical plan, Blender script, depth map, checkpoint or LoRA is uploaded.
+
+The shared H3 guidance is our adaptation of community demonstrations. We found
+a published H3 clay template and an H3-Max Blender-animation demo, but **no
+official clay recipe validated unchanged on both**. See the
+[research notes and original sources](h3-clay-research.md). No paid comparison
+has been performed by this project.
 
 ## Direct Seedance: no agent or Blender
 
 ```bash
-uv run --env-file .env scripts/generate_video.py --direct \
-  --prompt "A cinematic close-up of an ice cube melting on a warm ceramic plate." \
+uv run --env-file .env scripts/generate_video.py --video-model seedance --direct \
+  --input-dir examples/ballistic_pendulum_cardboard \
   --output outputs/direct.mp4
 ```
 
-This uses `bytedance/seedance-2.0/text-to-video`. The prompt is the only creative
-input. It skips VideoCoCo's physics stages. Neither this mode nor `--proxy` starts
+This uses `bytedance/seedance-2.0/text-to-video`. For backwards compatibility,
+`--direct` without `--video-model` also selects Seedance. Explicit H3/H3-Max with
+`--direct` is rejected: their integration uses reference-to-video.
+The prompt in `prompt.txt` is the only creative input; image-routing switches are
+rejected. It skips VideoCoCo's physics stages. Neither this mode nor `--proxy` starts
 an agent or reads agent configuration, regardless of the `--agent` selection.
 
 ## Use an existing proxy
 
-The included toy cases can go straight to Seedance:
+The included toy cases can go straight to any reference backend:
 
 ```bash
 uv run --env-file .env scripts/generate_video.py \
   --proxy data/toy_cases/0000_buoyancy/video.mp4 \
-  --prompt-file data/toy_cases/0000_buoyancy/edit_prompt.txt \
-  --output outputs/buoyancy-seedance.mp4
+  --input-dir data/toy_cases/0000_buoyancy \
+  --video-model h3-max --output outputs/buoyancy-h3-max.mp4
 ```
 
-The runner adds an explicit `@Video1` restyle instruction and validates the video
-before uploading. fal requires an MP4/MOV under 50 MB, 2–15 seconds long, with a
-reference resolution in its documented pixel-area bounds (approximately 480p–720p).
-This runner uses one reference video.
+With `--proxy`, the input folder's `edit_prompt.txt` takes precedence over
+`prompt.txt`. The runner adds the selected model's restyle instruction, saves the final wording
+in `edit_prompt.txt`, and validates the video before uploading. For H3/H3-Max it
+converts legacy `@Video1` references to `Video 1`. Set `--duration` to match your
+proxy's length to preserve timing. The runner accepts one local MP4/MOV, 2–15s
+long. Only Seedance imposes the additional under-50-MB and pixel-area checks
+(640×640 through 834×1112 pixels). Those Seedance limits are not imposed on H3.
 
 ## Dry runs and recovery
 
 Inspect settings without dependencies, keys, writes, or API calls:
 
 ```bash
-uv run --env-file .env scripts/generate_video.py --prompt "A ball bounces on a table." --dry-run
-uv run --env-file .env scripts/generate_video.py --agent pi --prompt "A ball bounces on a table." --dry-run
-uv run --env-file .env scripts/generate_video.py --direct --prompt "A ball bounces on a table." --dry-run
+uv run --env-file .env scripts/generate_video.py --input-dir examples/ballistic_pendulum_cardboard --dry-run
+uv run --env-file .env scripts/generate_video.py --agent pi --input-dir examples/ballistic_pendulum_cardboard --dry-run
+uv run --env-file .env scripts/generate_video.py --direct --input-dir examples/ballistic_pendulum_cardboard --dry-run
 ```
 
 Render and audit only (uses the chosen agent's authentication but does not need a fal key):
 
 ```bash
 uv run --env-file .env scripts/generate_video.py --prepare-only \
-  --prompt "A ball bounces on a table, losing height with each bounce." \
-  --output outputs/bounce.mp4
+  --input-dir examples/ballistic_pendulum_cardboard \
+  --output outputs/ballistic_pendulum_cardboard-draft.mp4
 ```
 
-Add `--agent pi` to use Pi here as well.
+Add `--agent pi` to use Pi here as well. Both image switches work with
+`--prepare-only`; add them to retain an image and prepare its prompt instructions
+without uploading anything to fal.
 
-After reviewing the draft, use `--proxy outputs/bounce.run/proxy.mp4` with
-`--prompt-file outputs/bounce.run/edit_prompt.txt` and a new output path.
+After reviewing the draft, generate from its assets:
+
+```bash
+uv run --env-file .env scripts/generate_video.py \
+  --input-dir outputs/ballistic_pendulum_cardboard-draft.run --proxy outputs/ballistic_pendulum_cardboard-draft.run/proxy.mp4 \
+  --output outputs/ballistic_pendulum_cardboard-final.mp4
+```
+
+If you prepared with `--image-to-ref2va`, repeat that flag here; the retained
+`reference.*` is uploaded with the proxy. Do not repeat `--image-to-agent` because
+no agent runs. The mode-3 warning still appears on this reuse step. Repeat any
+custom `--video-model`, `--duration`, `--aspect-ratio` and `--resolution` settings;
+these are not inferred from `input.json`. An edit prompt naming an image is
+rejected if `--image-to-ref2va` is off, before any upload.
 If a later fal step fails, likewise reuse the saved proxy rather than rebuilding.
 
 If a submitted fal job times out or the download fails:
 
 ```bash
-uv run --env-file .env scripts/generate_video.py --resume outputs/melting.run/fal_request.json
+uv run --env-file .env scripts/generate_video.py --resume outputs/ballistic_pendulum_cardboard.run/fal_request.json
 ```
 
 This retrieves the same job without submitting another generation. A completed
@@ -265,13 +369,15 @@ Use `bash run_autoformat.sh` to apply safe Ruff fixes and formatting. The existi
 unittest-style cases run under pytest without requiring a framework rewrite.
 All development tools are in the uv-managed `dev` dependency group and pinned in
 `uv.lock`. Checks cover `scripts/` and `tests/`; no GPU or credentials are needed.
-When Pi is installed, two additional offline integration checks verify its actual
-context isolation and priority/xhigh request serialization. They use synthetic
+When Pi is installed, additional offline integration checks verify its actual
+context isolation, image attachment and priority/xhigh request serialization. They use synthetic
 credentials and stop before any model request. These checks skip when Pi is absent.
 Live ChatGPT generation, Blender drafting, and fal billing are not exercised by tests.
 
 - [Seedance text-to-video schema](https://fal.ai/models/bytedance/seedance-2.0/text-to-video/api)
 - [Seedance reference-to-video schema](https://fal.ai/models/bytedance/seedance-2.0/reference-to-video/api)
+- [H3-Max reference-to-video schema](https://fal.ai/models/minimax/h3-max/reference-to-video/api)
+- [H3 reference-to-video schema](https://fal.ai/models/minimax/h3/reference-to-video/api)
 - [fal Python client](https://fal.ai/docs/api-reference/client-libraries/python/fal_client)
 - [Codex configuration](https://developers.openai.com/codex/config-reference/)
 - [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive/)

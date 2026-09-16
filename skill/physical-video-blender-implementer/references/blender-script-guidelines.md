@@ -2,10 +2,11 @@
 
 ## Script Shape
 
-Create standalone `.blender.py` scripts that can run with:
+Create standalone `.blender.py` scripts. Use the executable and artifact paths
+supplied by the task; the runner's default script can be invoked as:
 
-```powershell
-& "D:\blender\blender.exe" -b --python outputs\scripts\<case_id>.blender.py
+```bash
+blender --background --factory-startup --python-exit-code 1 --python scene.blender.py
 ```
 
 Prefer this structure:

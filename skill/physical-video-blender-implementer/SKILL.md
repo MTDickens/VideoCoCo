@@ -29,10 +29,10 @@ Accept these fields when available:
 - `case_id`: optional; use for stable file names.
 - `output_root`: optional; default to the current repo's `outputs/` tree.
 - `preview_profile`: optional; default to 720p, 16:9, 5 seconds, 24 fps.
-- `blender_path`: optional; default to `D:\blender\blender.exe` on this host
-  when available.
-- `ffmpeg_path`: optional; default to `D:\tools\ffmpeg\bin\ffmpeg.exe` on this
-  host when available.
+- `blender_path`: use the executable supplied by the task, otherwise resolve
+  `blender` on PATH.
+- `ffmpeg_path` and `ffprobe_path`: use supplied executables, otherwise resolve
+  `ffmpeg` and `ffprobe` on PATH.
 
 ## Workflow
 
@@ -87,7 +87,8 @@ Accept these fields when available:
 
 ## Output Contract
 
-Return a concise summary with this JSON-like payload when useful:
+Use the task's requested output schema. For a standalone implementation task
+without a specified schema, this artifact summary is suitable:
 
 ```json
 {
@@ -104,8 +105,8 @@ Return a concise summary with this JSON-like payload when useful:
 
 - Read `references/blender-script-guidelines.md` before writing Blender code.
 - Read `references/preview-rendering.md` before rendering or extracting sheets.
-- Use `references/implementation-output-schema.json` when a structured output
-  artifact is requested.
+- Use `references/implementation-output-schema.json` for a standalone artifact
+  report when the task does not supply its own schema.
 
 ## Implementation Rules
 

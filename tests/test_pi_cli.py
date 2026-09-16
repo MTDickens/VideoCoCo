@@ -46,11 +46,11 @@ class PiCliTests(unittest.TestCase):
         shutil.copy2(runner.REPO / "scripts/pi_video.ts", self.extension)
         self.report = self.root / "report.json"
 
-    def invoke(self, probe_source, *, rpc):
+    def invoke(self, probe_source: str, *, rpc: bool, reference_image: Path | None = None) -> subprocess.CompletedProcess[str]:
         probe = self.runtime / "probe.ts"
         probe.write_text(probe_source, encoding="utf-8")
         assert PI is not None
-        command = runner.pi_command(PI, self.extension)
+        command = runner.pi_command(PI, self.extension, reference_image)
         command.extend(["--extension", str(probe)])
         if rpc:
             command[command.index("json")] = "rpc"
@@ -99,3 +99,21 @@ class PiCliTests(unittest.TestCase):
         self.assertEqual(
             json.loads(self.report.read_text()), {"model": runner.MODEL, "tier": "priority", "effort": "xhigh", "store": False}
         )
+
+    def test_real_cli_attaches_reference_image_before_any_network_call(self) -> None:
+        image = self.workspace / "reference.png"
+        image.write_bytes(
+            base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNoaGgAAAMEAYFL09IQAAAAAElFTkSuQmCC")
+        )
+        self.invoke(
+            'import {writeFileSync} from "node:fs"; export default function(pi) {'
+            'pi.on("before_provider_request", (event) => {'
+            "const content=event.payload.input.flatMap(m => m.content ?? []);"
+            f"writeFileSync({json.dumps(str(self.report))}, JSON.stringify({{"
+            'images:content.filter(c => c.type === "input_image").map(c => c.image_url.split(",")[0]),'
+            'hasPrompt:content.some(c => c.text?.includes("Offline request serialization test."))'
+            "})); process.exit(0); }); }",
+            rpc=False,
+            reference_image=image,
+        )
+        self.assertEqual(json.loads(self.report.read_text()), {"images": ["data:image/png;base64"], "hasPrompt": True})

@@ -11,8 +11,9 @@ Use this skill to turn a video prompt into a lightweight physical process plan.
 The output is an implementation-neutral sequence of semantic keyframes and
 transitions for later Coder, Blender, simulation, or audit agents.
 
-Do not write Blender code, implementation primitives, solver settings, render
-commands, or exact frame numbers.
+Keep the physical plan free of Blender code, implementation primitives, solver
+settings, render commands, and exact frame numbers. Those belong to the later
+implementation stage.
 
 ## Inputs
 
@@ -89,7 +90,7 @@ If a field is missing, continue from the prompt and record needed assumptions.
 
 ## Output Schema
 
-Return JSON or a JSON-like object with this shape:
+Write the physical plan as JSON with this shape:
 
 ```json
 {

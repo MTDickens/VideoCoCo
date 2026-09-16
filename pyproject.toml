@@ -1,7 +1,7 @@
 [project]
 name = "videococo-seedance"
 version = "0.1.0"
-description = "VideoCoCo physics drafts and fal.ai Seedance 2.0 generation"
+description = "VideoCoCo physics drafts and fal.ai H3-Max, H3 and Seedance 2.0 generation"
 requires-python = ">=3.10"
 dependencies = [
     "fal-client>=0.14,<1",

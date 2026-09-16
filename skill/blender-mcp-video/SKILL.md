@@ -1,6 +1,6 @@
 ---
 name: blender-mcp-video
-description: Use for Blender MCP or Blender CLI video-generation work, especially when rendering scripted Blender scenes, debugging MCP port 9876, checking why `blender` is not on PATH, generating direct MP4 output, or fixing Blender 5.x `FFMPEG`/`media_type` render-setting errors. Also use for local PhyGenBench-Blender workflows that produce Blender videos from specs.
+description: Render and debug scripted Blender videos through the CLI, including direct MP4 output and Blender 5.x media_type settings. Also supports previewing scenes through Blender MCP when those tools are available in the task.
 ---
 
 # Blender MCP Video
@@ -9,28 +9,18 @@ description: Use for Blender MCP or Blender CLI video-generation work, especiall
 
 Separate the two Blender access paths:
 
-- **Blender MCP**: controls an already-running GUI Blender instance through port `9876`. Use it for scene inspection, quick code execution, object checks, and viewport/still previews.
+- **Blender MCP**: controls an already-running GUI Blender instance. Use it for interactive previews when the task supplies a connection and tools.
 - **Blender CLI**: starts Blender from an executable path. Use it for reliable batch rendering and final videos.
 
-Do not treat "MCP is connected" as evidence that the `blender` command is on PowerShell `PATH`.
+## Executables and Outputs
 
-## Local Defaults
+Use the Blender, FFmpeg and ffprobe paths supplied by the task. Otherwise resolve
+their command names on PATH. Run from the current workspace and use its requested
+script/output paths and render profile. The commands below use the VideoCoCo
+runner's filenames as examples; substitute the supplied executable paths.
 
-Use these known local paths before broad searching:
-
-```powershell
-D:\blender\blender.exe
-D:\tools\ffmpeg\bin\ffmpeg.exe
-D:\vscode_project\PhyGenBench-Blender
-```
-
-If `Get-Command blender` fails, prefer:
-
-```powershell
-& "D:\blender\blender.exe" -b --python <script.py>
-```
-
-Only search/install Blender or ffmpeg after these paths fail or the user asks.
+Blender runs scene scripts with its bundled Python. Use `uv run` for separate
+Python utilities outside Blender.
 
 ## Direct MP4 In Blender 5.x
 
@@ -71,11 +61,10 @@ Use MCP for preview/debug. Prefer CLI for final video unless the user specifical
 
 ## CLI Workflow
 
-For `D:\vscode_project\PhyGenBench-Blender`, the normal direct-render command is:
+Render the generated standalone script:
 
-```powershell
-cd D:\vscode_project\PhyGenBench-Blender
-python scripts\render_spec.py data\specs\output_video_96.spec.json --blender "D:\blender\blender.exe"
+```bash
+blender --background --factory-startup --python-exit-code 1 --python scene.blender.py
 ```
 
 Expected successful Blender log contains lines like:
@@ -88,11 +77,12 @@ Video append frame 120
 
 Validate the output with ffprobe when available:
 
-```powershell
-& "D:\tools\ffmpeg\bin\ffprobe.exe" -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames,duration -of default=noprint_wrappers=1 outputs\videos\output_video_96.mp4
+```bash
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames:format=duration -of json proxy.mp4
 ```
 
-For the current demo, expected metadata is `960x540`, `24/1`, `5.000000`, `120`.
+Compare metadata with the requested render profile. At 24 fps, a five-second
+video has 120 frames; use the task's duration and dimensions for other profiles.
 
 ## Fallback Policy
 
@@ -109,8 +99,8 @@ If frame sequences are used, put them under a temporary or ignored `outputs/fram
 
 Avoid rechecking everything every time. If video output fails, run the smallest relevant check:
 
-```powershell
-& "D:\blender\blender.exe" -b --factory-startup --python-expr "import bpy; s=bpy.context.scene; print(s.render.image_settings.media_type, s.render.image_settings.file_format); s.render.image_settings.media_type='VIDEO'; s.render.image_settings.file_format='FFMPEG'; print(s.render.image_settings.media_type, s.render.image_settings.file_format, bpy.app.version_string)"
+```bash
+blender --background --factory-startup --python-exit-code 1 --python-expr "import bpy; s=bpy.context.scene; print(s.render.image_settings.media_type, s.render.image_settings.file_format); s.render.image_settings.media_type='VIDEO'; s.render.image_settings.file_format='FFMPEG'; print(s.render.image_settings.media_type, s.render.image_settings.file_format, bpy.app.version_string)"
 ```
 
 If this succeeds, the bug is in the script settings, not the Blender install.

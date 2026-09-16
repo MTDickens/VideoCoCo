@@ -9,5 +9,5 @@
   or install packages into it.
 - Run `bash run_autoformat.sh` for safe Ruff fixes and formatting, and
   `bash run_ci_checks.sh` for formatting, linting, ty, and offline tests.
-- These checks cover the Seedance runner in `scripts/` and `tests/`.
+- These checks cover the video runner in `scripts/` and `tests/`.
 - Keep Python 3.10 compatibility and annotate new or changed runner functions.

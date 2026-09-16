@@ -1,0 +1,3 @@
+A large, stationary block of wood is suspended by two long wires. A small metal projectile is mid-air, traveling at high velocity toward the center of the wooden block.
+
+A piece of cardboard is held up in front of the camera view, completely blocking the wood block and bullet from view, without touching or interacting with any object in the scene, for a prolonged duration. After a pause, the cardboard is lowered. The camera remains stationary; no scene cuts; no new people or objects enter the scene. removed. Smooth, continuous evolution with only objects present in the initial scene.

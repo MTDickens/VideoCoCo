@@ -1,32 +1,28 @@
 # Preview Rendering
 
-## Local Defaults
+## Executables and Paths
 
-Use these paths when available:
-
-```powershell
-D:\blender\blender.exe
-D:\tools\ffmpeg\bin\ffmpeg.exe
-D:\vscode_project\PhyGenBench-Blender
-```
+Use the executable paths and artifact paths supplied by the task, otherwise use
+commands from PATH and the implementer's default output tree. Examples below use
+the VideoCoCo runner's filenames in the current workspace.
 
 ## Render Command
 
 From the repo root or selected workspace:
 
-```powershell
-& "D:\blender\blender.exe" -b --python outputs\scripts\<case_id>.blender.py
+```bash
+blender --background --factory-startup --python-exit-code 1 --python scene.blender.py
 ```
 
 Successful Blender logs should show frame appends through the final frame.
 
 ## Validate MP4
 
-```powershell
-& "D:\tools\ffmpeg\bin\ffprobe.exe" -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames,duration -of default=noprint_wrappers=1 outputs\previews\<case_id>.preview.mp4
+```bash
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames:format=duration -of json proxy.mp4
 ```
 
-For the default preview, expect:
+Compare against the requested profile. With the standalone default profile, expect:
 
 - width=1280
 - height=720
@@ -36,14 +32,16 @@ For the default preview, expect:
 
 ## Extract Preview Sheet
 
-Choose frames aligned to semantic keyframes. For a 120-frame preview with
-`K0-K4`, a useful sheet is:
+Choose frames aligned to the actual semantic-keyframe mapping. FFmpeg's `n` is
+zero-based: Blender frame 1 corresponds to `n=0`. For an example mapping of
+Blender frames 1, 30, 60, 90 and 120:
 
-```powershell
-& "D:\tools\ffmpeg\bin\ffmpeg.exe" -y -v error -i outputs\previews\<case_id>.preview.mp4 -vf "select='eq(n,0)+eq(n,29)+eq(n,59)+eq(n,89)+eq(n,119)',scale=240:-1,tile=5x1" -frames:v 1 outputs\previews\<case_id>.sheet.png
+```bash
+ffmpeg -y -v error -i proxy.mp4 -vf "select='eq(n,0)+eq(n,29)+eq(n,59)+eq(n,89)+eq(n,119)',scale=240:-1,tile=5x1" -frames:v 1 preview.png
 ```
 
-Use 6 tiles when the plan has 6 semantic keyframes.
+Use one tile per semantic keyframe and replace the example indices with the
+audited mapping, including the first and last frames.
 
 ## Preview Audit
 
