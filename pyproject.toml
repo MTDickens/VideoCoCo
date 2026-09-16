@@ -1,0 +1,46 @@
+[project]
+name = "videococo-seedance"
+version = "0.1.0"
+description = "VideoCoCo physics drafts and fal.ai Seedance 2.0 generation"
+requires-python = ">=3.10"
+dependencies = [
+    "fal-client>=0.14,<1",
+    "jsonschema>=4.23,<5",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 128
+target-version = "py310"
+include = ["scripts/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["scripts"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+include = ["scripts", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-config --strict-markers"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.16.7",
+    "ty>=0.0.81",
+]

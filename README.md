@@ -4,12 +4,12 @@ Official repository for **VideoCoCo**, a physics-faithful video generation
 pipeline that uses **code as a chain-of-thought** to draft physics before
 committing to pixels.
 
-[[🤗 Weights](https://huggingface.co/mickyhimself/VideoCoCo)] [[💻 Code](https://github.com/micky-li-hd/VideoCoCo)]
+[[💻 Original project](https://github.com/micky-li-hd/VideoCoCo)]
 
 <p align="center"><img src="figs/cot-paradigm.png" width="90%"></p>
 
 ## 💥 News
-- **[2026.07.29]** We release the Agent Skills, a toy dataset, and the inference code. Tuned weights are uploading to the [🤗 Hub](https://huggingface.co/mickyhimself/VideoCoCo).
+- **[2026.07.29]** Original release of the Agent Skills and toy dataset.
 
 ## 🪄 Draft Before Generation
 
@@ -29,12 +29,14 @@ photorealistic video** driven by a per-case edit instruction.
 
 ## 📦 What's in this repo
 
-- **`skill/`** — the five Agent Skills forming the pipeline: `physical-state-planner`
-  → `physical-video-blender-implementer` → `blender-mcp-video` →
-  `seedance-edit-prompt` → `seedance-distill`.
+- **`skill/`** — the three released Agent Skills: `physical-state-planner`
+  → `physical-video-blender-implementer` → `blender-mcp-video`.
+  The originally named `seedance-edit-prompt` and `seedance-distill` skills
+  are not included in this checkout.
+- **`scripts/generate_video.py`** — prompt → Codex or Pi/Blender physics draft → fal.ai
+  Seedance 2.0 → saved MP4; also supports direct text-to-video and existing proxies.
 - **`data/toy_cases/`** — 8 hand-checked video-to-video (v2v) triplets.
-- **`inference/`** — batch inference scripts + a patch against upstream OmniWeaving.
-- **🤗 [`mickyhimself/VideoCoCo`](https://huggingface.co/mickyhimself/VideoCoCo)** — the tuned transformer.
+- **`inference/`** — setup and usage documentation for the Seedance 2.0 runner.
 
 ## 🎬 Toy dataset
 
@@ -68,16 +70,61 @@ a training-scale corpus.
 
 ## ⚙️ Inference
 
-See [`inference/README.md`](inference/README.md): clone the official
-[OmniWeaving](https://github.com/Tencent-Hunyuan/OmniWeaving), apply our patch,
-pull the tuned weights from the 🤗 Hub, and run `bench_infer/batch_infer_edit.py`.
+For **fal.ai Seedance 2.0**, use the
+[prompt-to-video runner](inference/seedance.md):
+
+```bash
+uv sync --locked
+cp -n .env.example .env  # Once; then fill in FAL_KEY in .env.
+uv run --env-file .env scripts/generate_video.py --login  # One-time isolated Codex login.
+uv run --env-file .env scripts/generate_video.py \
+  --prompt "An ice cube melts on a warm plate, shrinking into a growing pool of water." \
+  --output outputs/melting.mp4
+```
+
+For Pi with your ChatGPT subscription instead:
+
+```bash
+uv run --env-file .env scripts/generate_video.py --agent pi --login
+# In Pi: /login openai-codex, then /quit after signing in.
+uv run --env-file .env scripts/generate_video.py --agent pi \
+  --prompt "An ice cube melts on a warm plate, shrinking into a growing pool of water." \
+  --output outputs/melting-pi.mp4
+```
+
+Both agents use `gpt-6-astra`, fast service, xhigh reasoning, and isolated
+configuration/login stores. Codex remains the default. Pi provides the same
+draft/audit workflow with normal local permissions; it has no built-in sandbox.
+
+The physics pipeline also needs the chosen agent CLI, Blender, and FFmpeg. Add
+`--direct` to use only Seedance text-to-video, requiring just the prompt and fal
+credentials. See the guide for setup, agent isolation, existing proxies, and recovery.
+
+## Development
+
+The Seedance runner uses `uv` throughout. Its tooling is selectively adapted from
+[research-code-python-starter-template](https://github.com/MTDickens/research-code-python-starter-template):
+Ruff for formatting, import sorting, and linting; `ty` for static types; and pytest
+for the existing offline tests. Versions are pinned in `uv.lock`.
+
+```bash
+uv sync --locked
+bash run_autoformat.sh  # Safe lint fixes and formatting.
+bash run_ci_checks.sh   # Formatting, linting, types, and tests.
+```
+
+Checks cover `scripts/` and `tests/`, targeting Python 3.10+.
+GitHub Actions runs the same checks on Python 3.10 and 3.14, without API credentials,
+Blender, or paid model calls. Use `uv sync --locked --no-dev` for runtime dependencies
+only; development tools live in the `dev` dependency group.
 
 ## 🗺️ Roadmap
 
 - [x] Agent Skills (`skill/` — prompt → physical plan → Blender proxy → photoreal edit prompt)
 - [x] Toy dataset (8 v2v triplets)
-- [x] Inference stack (`inference/` — scripts + upstream patch)
-- [ ] Tuned weights (uploading to [🤗 Hugging Face Hub](https://huggingface.co/mickyhimself/VideoCoCo))
+- [x] Seedance 2.0 runner (physics drafts, direct generation, proxy restyling, and recovery)
+- [x] Codex and Pi backends with isolated configuration and shared artifact checks
+- [x] uv-managed environment, Ruff, ty, pytest, and CI
 
 ## 🧠 Our Related Work
 
@@ -94,6 +141,4 @@ Explore our additional research on **Text-to-Image / Video Generation** and **Co
 
 ## 📄 License
 
-Dataset released for research use. The inference code and tuned weights build on
-**Tencent HY-OmniWeaving** and are governed by the Tencent HY Community License
-Agreement; those components ship with the corresponding license and attribution.
+Dataset released for research use.
